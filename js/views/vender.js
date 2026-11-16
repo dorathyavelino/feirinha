@@ -1,7 +1,8 @@
 // Tela Vender: monta o pedido (e, com editOrderId, altera um pedido existente).
 import { esc } from '../html.js';
 import { formatBRL } from '../money.js';
-import { PAYMENTS, itemsTotal, validateDraft } from '../orders.js';
+import { PAYMENTS, itemsTotal, validateDraft, alterOrder, cancelOrder } from '../orders.js';
+import { alteredMessage, canceledMessage } from '../messages.js';
 
 const emptyDraft = () => ({ customer: '', payment: null, items: [] });
 
@@ -130,6 +131,35 @@ export function render(root, ctx, params) {
   }
 }
 
-// Preenchidos na Task 6.
-function onSaveEdit() {}
-function onCancelOrder() {}
+function onSaveEdit(ctx, orderId) {
+  try {
+    let result;
+    ctx.update((s) => {
+      result = alterOrder(s, orderId, s.editing.draft);
+      return { ...result.state, editing: null };
+    }, { silent: true });
+    ctx.go('mensagem', {
+      tab: 'pedidos',
+      title: 'Pedido alterado',
+      text: alteredMessage(result.order, result.previousTotalCents),
+    });
+  } catch (e) {
+    ctx.toast(e.message);
+  }
+}
+
+function onCancelOrder(ctx, orderId) {
+  const o = ctx.state.orders.find((x) => x.id === orderId);
+  const who = o.customer ? ` de ${o.customer}` : '';
+  if (!confirm(`Cancelar o pedido #${o.number}${who}? Isso não pode ser desfeito.`)) return;
+  try {
+    let result;
+    ctx.update((s) => {
+      result = cancelOrder(s, orderId);
+      return { ...result.state, editing: null };
+    }, { silent: true });
+    ctx.go('mensagem', { tab: 'pedidos', title: 'Pedido cancelado', text: canceledMessage(result.order) });
+  } catch (e) {
+    ctx.toast(e.message);
+  }
+}

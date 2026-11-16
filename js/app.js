@@ -8,7 +8,12 @@ import * as resumo from './views/resumo.js';
 
 const views = { vender, mensagem, pedidos, produtos, resumo };
 // A tela Mensagem pertence à aba de onde veio.
-const tabOf = (view, params) => (view === 'mensagem' ? (params.tab ?? 'vender') : view);
+// Alterar um pedido (Vender com editOrderId) pertence à aba Pedidos.
+const tabOf = (view, params) => {
+  if (view === 'mensagem') return params.tab ?? 'vender';
+  if (view === 'vender' && params.editOrderId) return 'pedidos';
+  return view;
+};
 
 const store = createStore(localStorage);
 let state = store.load();
