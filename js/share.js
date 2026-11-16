@@ -1,9 +1,13 @@
 // Enviar para o WhatsApp e copiar texto.
 
+// whatsapp:// abre o app direto, sem carregar página na internet;
+// o WhatsApp guarda a mensagem e envia quando o sinal voltar.
+export function whatsAppUrl(text) {
+  return 'whatsapp://send?text=' + encodeURIComponent(text);
+}
+
 export function openWhatsApp(text) {
-  const url = 'https://wa.me/?text=' + encodeURIComponent(text);
-  const win = window.open(url, '_blank');
-  if (!win) window.location.href = url;
+  window.location.href = whatsAppUrl(text);
 }
 
 export async function copyText(text) {

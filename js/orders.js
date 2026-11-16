@@ -1,4 +1,6 @@
 // Pedidos. Funções puras: recebem o estado e devolvem um novo.
+// Cada pedido guarda em lastMessage o último texto gerado, para poder reenviar.
+import { orderMessage, alteredMessage, canceledMessage } from './messages.js';
 
 export const PAYMENTS = [
   { key: 'credito', label: 'Crédito' },
@@ -57,6 +59,7 @@ export function ensureCommitted(state, now) {
     status: 'ativo',
     previousTotalCents: null,
   };
+  order.lastMessage = orderMessage(order);
   return {
     order,
     state: {
@@ -81,6 +84,7 @@ export function alterOrder(state, orderId, draft) {
     status: 'alterado',
     previousTotalCents,
   };
+  order.lastMessage = alteredMessage(order, previousTotalCents);
   return { state: replaceOrder(state, order), order, previousTotalCents };
 }
 
@@ -88,9 +92,23 @@ export function cancelOrder(state, orderId) {
   const old = findOrder(state, orderId);
   if (old.status === 'cancelado') throw new Error('Este pedido já foi cancelado.');
   const order = { ...old, status: 'cancelado' };
+  order.lastMessage = canceledMessage(order);
   return { state: replaceOrder(state, order), order };
 }
 
 export function clearSales(state) {
   return { ...state, orders: [], nextNumber: 1, checkout: null, editing: null };
+}
+
+// Num pedido novo, nome e preço vêm sempre do cadastro atual
+// (itens que saíram do cadastro ficam como estão).
+export function refreshDraftPrices(draft, products) {
+  let changed = false;
+  const items = draft.items.map((it) => {
+    const p = products.find((x) => x.id === it.productId);
+    if (!p || (p.name === it.name && p.priceCents === it.priceCents)) return it;
+    changed = true;
+    return { ...it, name: p.name, priceCents: p.priceCents };
+  });
+  return changed ? { ...draft, items } : draft;
 }

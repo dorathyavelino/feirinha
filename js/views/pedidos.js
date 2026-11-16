@@ -3,6 +3,7 @@ import { esc } from '../html.js';
 import { formatBRL } from '../money.js';
 import { dateKey, weekdayLabel } from '../dates.js';
 import { itemsTotal, paymentLabel } from '../orders.js';
+import { canceledMessage } from '../messages.js';
 import { daysWithOrders } from '../summary.js';
 
 const hhmm = (ms) => {
@@ -26,7 +27,7 @@ export function render(root, ctx, params) {
       </select>` : ''}
     <div style="margin-top:12px">
       ${list.length === 0 ? '<p class="empty">Nenhum pedido neste dia.</p>' : list.map((o) => `
-        <button type="button" class="order ${o.status}" data-id="${o.id}" ${o.status === 'cancelado' ? 'disabled' : ''}>
+        <button type="button" class="order ${o.status}" data-id="${o.id}">
           <div class="top"><span>#${o.number}${o.customer ? ' ' + esc(o.customer) : ''}</span><span>${formatBRL(itemsTotal(o.items))}</span></div>
           <div class="sub">${paymentLabel(o.payment)} · ${hhmm(o.createdAt)}
             ${o.status === 'alterado' ? '<span class="tag alterado">alterado</span>' : ''}
@@ -38,9 +39,13 @@ export function render(root, ctx, params) {
 
   root.querySelector('#day')?.addEventListener('change', (e) => ctx.go('pedidos', { day: e.target.value }));
 
-  for (const b of root.querySelectorAll('.order:not([disabled])')) {
+  for (const b of root.querySelectorAll('.order')) {
     b.onclick = () => {
       const o = ctx.state.orders.find((x) => x.id === b.dataset.id);
+      if (o.status === 'cancelado') {
+        ctx.go('mensagem', { tab: 'pedidos', title: `Pedido #${o.number} (cancelado)`, text: o.lastMessage ?? canceledMessage(o) });
+        return;
+      }
       const draft = { customer: o.customer, payment: o.payment, items: o.items.map((it) => ({ ...it })) };
       ctx.update((s) => ({ ...s, editing: { orderId: o.id, draft } }), { silent: true });
       ctx.go('vender', { editOrderId: o.id });

@@ -1,8 +1,8 @@
 // Tela Vender: monta o pedido (e, com editOrderId, altera um pedido existente).
 import { esc } from '../html.js';
 import { formatBRL } from '../money.js';
-import { PAYMENTS, itemsTotal, validateDraft, alterOrder, cancelOrder } from '../orders.js';
-import { alteredMessage, canceledMessage } from '../messages.js';
+import { PAYMENTS, itemsTotal, validateDraft, alterOrder, cancelOrder, refreshDraftPrices } from '../orders.js';
+import { orderMessage } from '../messages.js';
 
 const emptyDraft = () => ({ customer: '', payment: null, items: [] });
 
@@ -37,6 +37,9 @@ export function render(root, ctx, params) {
     const co = ctx.state.checkout;
     if (!co || co.orderId) {
       ctx.update((s) => ({ ...s, checkout: { draft: emptyDraft(), orderId: null } }), { silent: true });
+    } else {
+      const fresh = refreshDraftPrices(co.draft, ctx.state.products);
+      if (fresh !== co.draft) ctx.update((s) => ({ ...s, checkout: { ...s.checkout, draft: fresh } }), { silent: true });
     }
   }
 
@@ -93,6 +96,7 @@ export function render(root, ctx, params) {
     <p class="error" id="err"></p>
     <button type="button" class="btn" id="go">${editing ? 'Salvar e gerar mensagem' : 'Gerar mensagem'}</button>
     ${editing ? '<button type="button" class="btn danger" id="cancel">Cancelar pedido</button>' : ''}
+    ${editing ? '<button type="button" class="btn gray" id="resend">Reenviar última mensagem</button>' : ''}
     ${editing ? '<button type="button" class="btn link" id="back">Voltar sem salvar</button>' : ''}
   `;
 
@@ -124,6 +128,10 @@ export function render(root, ctx, params) {
 
   if (editing) {
     root.querySelector('#cancel').onclick = () => onCancelOrder(ctx, editId);
+    root.querySelector('#resend').onclick = () => {
+      ctx.update((s) => ({ ...s, editing: null }), { silent: true });
+      ctx.go('mensagem', { tab: 'pedidos', title: `Pedido #${editedOrder.number}`, text: editedOrder.lastMessage ?? orderMessage(editedOrder) });
+    };
     root.querySelector('#back').onclick = () => {
       ctx.update((s) => ({ ...s, editing: null }), { silent: true });
       ctx.go('pedidos');
@@ -141,7 +149,7 @@ function onSaveEdit(ctx, orderId) {
     ctx.go('mensagem', {
       tab: 'pedidos',
       title: 'Pedido alterado',
-      text: alteredMessage(result.order, result.previousTotalCents),
+      text: result.order.lastMessage,
     });
   } catch (e) {
     ctx.toast(e.message);
@@ -158,7 +166,7 @@ function onCancelOrder(ctx, orderId) {
       result = cancelOrder(s, orderId);
       return { ...result.state, editing: null };
     }, { silent: true });
-    ctx.go('mensagem', { tab: 'pedidos', title: 'Pedido cancelado', text: canceledMessage(result.order) });
+    ctx.go('mensagem', { tab: 'pedidos', title: 'Pedido cancelado', text: result.order.lastMessage });
   } catch (e) {
     ctx.toast(e.message);
   }
