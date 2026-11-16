@@ -165,7 +165,7 @@ input:focus, select:focus { outline: 2px solid var(--green); outline-offset: 1px
 .stat b { font-variant-numeric: tabular-nums; }
 
 /* Produtos */
-.plist .prod { cursor: pointer; }
+.plist .prod { cursor: pointer; width: 100%; font: inherit; color: inherit; text-align: left; min-height: 52px; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
 /* Aviso */
