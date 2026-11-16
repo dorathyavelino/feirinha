@@ -61,5 +61,23 @@ tabs.addEventListener('click', (e) => {
   if (b) ctx.go(b.dataset.tab);
 });
 
+// Fora da tela inicial, pede para instalar (os dados ficam separados no iPhone).
+function showWelcomeIfNeeded() {
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  let skipped = false;
+  try { skipped = sessionStorage.getItem('feirinha:welcome-skip') === '1'; } catch { /* sem sessionStorage */ }
+  if (standalone || skipped) return;
+  const w = document.getElementById('welcome');
+  w.hidden = false;
+  document.getElementById('welcome-skip').onclick = () => {
+    try { sessionStorage.setItem('feirinha:welcome-skip', '1'); } catch { /* ignora */ }
+    w.hidden = true;
+  };
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
 navigator.storage?.persist?.().catch(() => {});
+showWelcomeIfNeeded();
 render();

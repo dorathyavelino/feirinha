@@ -181,3 +181,15 @@ input:focus, select:focus { outline: 2px solid var(--green); outline-offset: 1px
 .toast.show { opacity: 1; }
 
 .empty { text-align: center; color: var(--muted); padding: 24px 8px; }
+
+/* Boas-vindas (fora da tela inicial) */
+.welcome {
+  position: fixed; inset: 0; z-index: 30;
+  background: var(--bg);
+  overflow-y: auto;
+  padding: calc(24px + env(safe-area-inset-top)) 16px 24px;
+}
+.welcome[hidden] { display: none; }
+.welcome-box { max-width: 520px; margin: 0 auto; }
+.welcome ol { padding-left: 22px; font-size: 18px; }
+.welcome li { margin: 10px 0; }

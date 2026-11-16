@@ -1,7 +1,8 @@
 // Servidor estático local para testar o app: node tools/serve.js
+// Só escuta em 127.0.0.1 e só serve os tipos de arquivo do app.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { extname, join, normalize, resolve } from 'node:path';
+import { extname, resolve, sep } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PORT = Number(process.env.PORT) || 5173;
@@ -15,15 +16,21 @@ const TYPES = {
 };
 
 createServer(async (req, res) => {
-  let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  if (path.endsWith('/')) path += 'index.html';
-  const file = normalize(join(ROOT, path));
-  if (!file.startsWith(ROOT)) { res.writeHead(403).end(); return; }
   try {
+    let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    if (path.endsWith('/')) path += 'index.html';
+    const file = resolve(ROOT, '.' + path);
+    const inside = file.startsWith(ROOT + sep);
+    const hidden = path.split('/').some((seg) => seg.startsWith('.'));
+    const type = TYPES[extname(file)];
+    if (!inside || hidden || !type || path.includes('\0')) {
+      res.writeHead(404).end('Não encontrado');
+      return;
+    }
     const body = await readFile(file);
-    res.writeHead(200, { 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream', 'Cache-Control': 'no-cache' });
+    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-cache' });
     res.end(body);
   } catch {
-    res.writeHead(404).end('Não encontrado');
+    if (!res.headersSent) res.writeHead(404).end('Não encontrado');
   }
-}).listen(PORT, () => console.log(`Feirinha em http://localhost:${PORT}/`));
+}).listen(PORT, '127.0.0.1', () => console.log(`Feirinha em http://localhost:${PORT}/`));
