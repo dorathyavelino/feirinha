@@ -1,0 +1,96 @@
+// Pedidos. Funções puras: recebem o estado e devolvem um novo.
+
+export const PAYMENTS = [
+  { key: 'credito', label: 'Crédito' },
+  { key: 'debito', label: 'Débito' },
+  { key: 'pix', label: 'Pix' },
+  { key: 'dinheiro', label: 'Dinheiro' },
+];
+
+export function paymentLabel(key) {
+  return PAYMENTS.find((p) => p.key === key)?.label ?? '';
+}
+
+export function itemsTotal(items) {
+  return items.reduce((sum, it) => sum + it.priceCents * it.qty, 0);
+}
+
+const filled = (items) => items.filter((it) => it.qty >= 1).map((it) => ({ ...it }));
+
+export function validateDraft(draft) {
+  if (filled(draft.items).length === 0) return 'Adicione pelo menos um produto.';
+  if (!draft.payment) return 'Escolha a forma de pagamento.';
+  return null;
+}
+
+function assertValid(draft) {
+  const err = validateDraft(draft);
+  if (err) throw new Error(err);
+}
+
+function findOrder(state, orderId) {
+  const order = state.orders.find((o) => o.id === orderId);
+  if (!order) throw new Error('Pedido não encontrado.');
+  return order;
+}
+
+const replaceOrder = (state, order) => ({
+  ...state,
+  orders: state.orders.map((o) => (o.id === order.id ? order : o)),
+});
+
+// Registra o pedido em andamento (state.checkout) uma única vez.
+export function ensureCommitted(state, now) {
+  const { checkout } = state;
+  if (checkout.orderId) {
+    return { state, order: findOrder(state, checkout.orderId) };
+  }
+  const { draft } = checkout;
+  assertValid(draft);
+  const order = {
+    id: crypto.randomUUID(),
+    number: state.nextNumber,
+    customer: draft.customer.trim(),
+    payment: draft.payment,
+    items: filled(draft.items),
+    createdAt: now,
+    status: 'ativo',
+    previousTotalCents: null,
+  };
+  return {
+    order,
+    state: {
+      ...state,
+      orders: [...state.orders, order],
+      nextNumber: state.nextNumber + 1,
+      checkout: { ...checkout, orderId: order.id },
+    },
+  };
+}
+
+export function alterOrder(state, orderId, draft) {
+  const old = findOrder(state, orderId);
+  if (old.status === 'cancelado') throw new Error('Pedido cancelado não pode ser alterado.');
+  assertValid(draft);
+  const previousTotalCents = itemsTotal(old.items);
+  const order = {
+    ...old,
+    customer: draft.customer.trim(),
+    payment: draft.payment,
+    items: filled(draft.items),
+    status: 'alterado',
+    previousTotalCents,
+  };
+  return { state: replaceOrder(state, order), order, previousTotalCents };
+}
+
+export function cancelOrder(state, orderId) {
+  const old = findOrder(state, orderId);
+  if (old.status === 'cancelado') throw new Error('Este pedido já foi cancelado.');
+  const order = { ...old, status: 'cancelado' };
+  return { state: replaceOrder(state, order), order };
+}
+
+export function clearSales(state) {
+  return { ...state, orders: [], nextNumber: 1, checkout: null, editing: null };
+}
